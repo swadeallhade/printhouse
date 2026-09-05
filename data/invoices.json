@@ -1,1 +1,29 @@
-[]
+[
+  {
+    "id": "inv_1788604099130",
+    "savedAt": "2026-09-05T10:28:19.130Z",
+    "bizName": "PRINT HOUSE",
+    "bizAddress": "Add: Pritinagar 4 No Road, Pritinagar, Nadia, 741247",
+    "bizPhone": "7001013770",
+    "bizEmail": "infocscpayradanga@gmail.com",
+    "docType": "invoice",
+    "custName": "ABC",
+    "custDetail": "700015454",
+    "invNumber": "INV-0001",
+    "invDate": "2026-09-05",
+    "payMethod": "Cash",
+    "discountPct": 0,
+    "taxPct": 0,
+    "amountPaid": 0,
+    "noteText": "",
+    "stampImg": "",
+    "items": [
+      {
+        "name": "OAF",
+        "qty": 1,
+        "rate": 500
+      }
+    ],
+    "grand": 500
+  }
+]
