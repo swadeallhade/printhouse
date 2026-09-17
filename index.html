@@ -409,9 +409,9 @@
     </div>
 
     <div class="card c-purple" id="payFormCard" style="display:none;">
-      <h2><span class="dot"></span>Record a new payment</h2>
+      <h2><span class="dot"></span><span id="payFormTitle">Record a new payment</span></h2>
       <div class="field-row">
-        <div><label>Amount received now (₹)</label><input id="payAmount" type="number" min="0" step="0.01" placeholder="e.g. 2000"></div>
+        <div><label>Amount received (₹)</label><input id="payAmount" type="number" min="0" step="0.01" placeholder="e.g. 2000"></div>
         <div><label>Date received</label><input id="payDate" type="date"></div>
       </div>
       <div class="field-row single">
@@ -426,6 +426,7 @@
       </div>
       <div class="btn-row">
         <button class="btn primary" id="payRecordBtn">Save payment & generate receipt</button>
+        <button class="btn ghost" id="payEditCancelBtn" style="display:none;">Cancel edit</button>
       </div>
       <p class="hint" id="payFormMsg"></p>
     </div>
@@ -865,23 +866,73 @@ function renderPayInvoiceSummary(inv){
   `;
 }
 
-function renderPayHistory(inv){
+function paymentRows(inv){
   const rows = [];
   if(inv.amountPaid > 0){
-    rows.push({date: inv.invDate, amount: inv.amountPaid, method: inv.payMethod, tag:'At billing'});
+    rows.push({date: inv.invDate, amount: inv.amountPaid, method: inv.payMethod, tag:'At billing', editable:false, idx:-1});
   }
-  (inv.payments||[]).forEach(p=> rows.push({date:p.date, amount:p.amount, method:p.method, tag:'Payment'}));
+  (inv.payments||[]).forEach((p, idx)=> rows.push({date:p.date, amount:p.amount, method:p.method, tag:'Payment', editable:true, idx}));
+  let running = 0;
+  rows.forEach(r=>{
+    running += (parseFloat(r.amount)||0);
+    r.paidAfter = running;
+    r.dueAfter = Math.max((inv.grand||0) - running, 0);
+  });
+  return rows;
+}
+
+let editingPaymentIdx = null; // null = adding a new payment; number = editing payments[idx]
+
+function renderPayHistory(inv){
+  const rows = paymentRows(inv);
   const el = document.getElementById('payHistoryList');
   if(rows.length === 0){
     el.innerHTML = '<div class="empty-state" style="padding:12px 0;">No payments recorded yet.</div>';
     return;
   }
-  el.innerHTML = rows.map(r=> `
-    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);">
+  el.innerHTML = rows.map((r, i)=> `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;">
       <span>${r.date ? formatDate(r.date) : '—'} · ${escapeHtml(r.method||'')} <span style="color:var(--ink-soft);">(${r.tag})</span></span>
-      <span style="font-weight:700;">${fmt(r.amount||0)}</span>
+      <span style="display:flex;align-items:center;gap:8px;">
+        <span style="font-weight:700;">${fmt(r.amount||0)}</span>
+        <button type="button" class="btn ghost" data-act="viewpay" data-row="${i}" style="padding:4px 9px;font-size:11.5px;">View/print</button>
+        ${r.editable ? `<button type="button" class="btn ghost" data-act="editpay" data-row="${i}" style="padding:4px 9px;font-size:11.5px;">Edit</button>` : ''}
+      </span>
     </div>
   `).join('');
+
+  el.querySelectorAll('[data-act="viewpay"]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const r = rows[parseInt(b.dataset.row,10)];
+      renderReceipt(inv, {amount:r.amount, date:r.date, method:r.method}, r.paidAfter, r.dueAfter);
+      document.getElementById('payReceiptWrap').style.display = '';
+    });
+  });
+  el.querySelectorAll('[data-act="editpay"]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const r = rows[parseInt(b.dataset.row,10)];
+      editingPaymentIdx = r.idx;
+      document.getElementById('payAmount').value = r.amount;
+      document.getElementById('payDate').value = r.date || '';
+      document.getElementById('payMethodSel').value = r.method || 'Cash';
+      document.getElementById('payFormTitle').textContent = 'Edit this payment';
+      document.getElementById('payRecordBtn').textContent = 'Update payment & receipt';
+      document.getElementById('payEditCancelBtn').style.display = '';
+      document.getElementById('payFormMsg').textContent = '';
+      document.getElementById('payFormCard').scrollIntoView({behavior:'smooth', block:'center'});
+    });
+  });
+}
+
+function resetPaymentForm(){
+  editingPaymentIdx = null;
+  document.getElementById('payFormTitle').textContent = 'Record a new payment';
+  document.getElementById('payRecordBtn').textContent = 'Save payment & generate receipt';
+  document.getElementById('payEditCancelBtn').style.display = 'none';
+  document.getElementById('payAmount').value = '';
+  document.getElementById('payDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('payMethodSel').value = 'Cash';
+  document.getElementById('payFormMsg').textContent = '';
 }
 
 function renderReceipt(inv, payment, paidAfter, dueAfter){
@@ -925,14 +976,15 @@ document.getElementById('payFindBtn').addEventListener('click', async ()=>{
   currentPaymentInvoice = inv;
   renderPayInvoiceSummary(inv);
   document.getElementById('payFormCard').style.display = '';
-  document.getElementById('payAmount').value = '';
-  document.getElementById('payDate').value = new Date().toISOString().slice(0,10);
-  document.getElementById('payFormMsg').textContent = '';
+  resetPaymentForm();
+  renderPayHistory(inv);
   document.getElementById('payReceiptWrap').style.display = 'none';
 });
 document.getElementById('payFindNumber').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('payFindBtn').click(); }
 });
+
+document.getElementById('payEditCancelBtn').addEventListener('click', resetPaymentForm);
 
 document.getElementById('payRecordBtn').addEventListener('click', async ()=>{
   const msg = document.getElementById('payFormMsg');
@@ -943,7 +995,15 @@ document.getElementById('payRecordBtn').addEventListener('click', async ()=>{
   const method = document.getElementById('payMethodSel').value;
 
   if(!currentPaymentInvoice.payments) currentPaymentInvoice.payments = [];
-  currentPaymentInvoice.payments.push({amount, date, method, recordedAt: new Date().toISOString()});
+
+  if(editingPaymentIdx !== null && editingPaymentIdx >= 0){
+    const existing = currentPaymentInvoice.payments[editingPaymentIdx] || {};
+    currentPaymentInvoice.payments[editingPaymentIdx] = {
+      ...existing, amount, date, method, editedAt: new Date().toISOString()
+    };
+  } else {
+    currentPaymentInvoice.payments.push({amount, date, method, recordedAt: new Date().toISOString()});
+  }
 
   await saveInvoiceRecord(currentPaymentInvoice);
 
@@ -953,8 +1013,9 @@ document.getElementById('payRecordBtn').addEventListener('click', async ()=>{
   renderPayHistory(currentPaymentInvoice);
   renderReceipt(currentPaymentInvoice, {amount, date, method}, paidAfter, dueAfter);
   document.getElementById('payReceiptWrap').style.display = '';
-  msg.textContent = 'Payment saved ✓';
-  document.getElementById('payAmount').value = '';
+  const wasEditing = editingPaymentIdx !== null;
+  resetPaymentForm();
+  msg.textContent = wasEditing ? 'Payment updated ✓' : 'Payment saved ✓';
 });
 
 document.getElementById('receiptPrintBtn').addEventListener('click', ()=>{
