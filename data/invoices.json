@@ -77,10 +77,11 @@
     "savedAt": "2026-09-06T02:08:55.278Z",
     "payments": [
       {
-        "amount": 884.98,
-        "date": "2026-09-17",
+        "amount": 885,
+        "date": "2026-09-16",
         "method": "Cash",
-        "recordedAt": "2026-09-17T04:59:17.076Z"
+        "recordedAt": "2026-09-17T04:59:17.076Z",
+        "editedAt": "2026-09-17T05:00:00.396Z"
       }
     ],
     "bizName": "PRINT HOUSE",
