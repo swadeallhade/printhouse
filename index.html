@@ -431,20 +431,24 @@
       <p class="hint" id="payFormMsg"></p>
     </div>
 
-    <div id="payReceiptWrap" style="display:none;">
+    <div id="payLowerWrap" style="display:none;">
       <div class="grid">
         <div>
           <div class="card c-amber">
             <h2><span class="dot"></span>Payment history for this invoice</h2>
             <div id="payHistoryList" style="font-size:13px;"></div>
           </div>
-          <div class="btn-row">
+          <div class="btn-row" id="receiptPrintBtnRow" style="display:none;">
             <button class="btn ghost" id="receiptPrintBtn">Print / download receipt PDF</button>
           </div>
-          <p class="hint">This shows the receipt for the payment you just recorded — Received amount, amount in words, and the total Paid / Due against this invoice so far.</p>
+          <p class="hint" id="receiptHint" style="display:none;">This shows the receipt for the selected payment — Received amount, amount in words, and the total Paid / Due against this invoice at that point.</p>
         </div>
 
-        <div id="receiptPrintArea">
+        <div>
+          <div id="receiptPlaceholder" class="card c-blue" style="text-align:center;color:var(--ink-soft);padding:40px 18px;">
+            Click <strong>"View/print"</strong> next to a payment on the left to see its Money Receipt here.
+          </div>
+          <div id="receiptPrintArea" style="display:none;">
           <div class="mr-wrap">
             <div class="mr-header">
               <div class="mr-orange"></div>
@@ -470,6 +474,7 @@
                 <div class="mr-sign"><img id="mrStamp" src="" style="display:none;"><div class="mr-line">Authorized Signature</div></div>
               </div>
             </div>
+          </div>
           </div>
         </div>
       </div>
@@ -897,6 +902,7 @@ function renderPayHistory(inv){
         <span style="font-weight:700;">${fmt(r.amount||0)}</span>
         <button type="button" class="btn ghost" data-act="viewpay" data-row="${i}" style="padding:4px 9px;font-size:11.5px;">View/print</button>
         ${r.editable ? `<button type="button" class="btn ghost" data-act="editpay" data-row="${i}" style="padding:4px 9px;font-size:11.5px;">Edit</button>` : ''}
+        ${r.editable ? `<button type="button" class="btn ghost" data-act="delpay" data-row="${i}" style="padding:4px 9px;font-size:11.5px;color:var(--coral-dark);">Delete</button>` : ''}
       </span>
     </div>
   `).join('');
@@ -905,7 +911,6 @@ function renderPayHistory(inv){
     b.addEventListener('click', ()=>{
       const r = rows[parseInt(b.dataset.row,10)];
       renderReceipt(inv, {amount:r.amount, date:r.date, method:r.method}, r.paidAfter, r.dueAfter);
-      document.getElementById('payReceiptWrap').style.display = '';
     });
   });
   el.querySelectorAll('[data-act="editpay"]').forEach(b=>{
@@ -922,6 +927,18 @@ function renderPayHistory(inv){
       document.getElementById('payFormCard').scrollIntoView({behavior:'smooth', block:'center'});
     });
   });
+  el.querySelectorAll('[data-act="delpay"]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const r = rows[parseInt(b.dataset.row,10)];
+      if(!confirm('Delete this payment of ' + fmt(r.amount||0) + '? This cannot be undone.')) return;
+      inv.payments.splice(r.idx, 1);
+      await saveInvoiceRecord(inv);
+      renderPayInvoiceSummary(inv);
+      renderPayHistory(inv);
+      resetReceiptColumn();
+      if(editingPaymentIdx !== null) resetPaymentForm();
+    });
+  });
 }
 
 function resetPaymentForm(){
@@ -933,6 +950,13 @@ function resetPaymentForm(){
   document.getElementById('payDate').value = new Date().toISOString().slice(0,10);
   document.getElementById('payMethodSel').value = 'Cash';
   document.getElementById('payFormMsg').textContent = '';
+}
+
+function resetReceiptColumn(){
+  document.getElementById('receiptPlaceholder').style.display = '';
+  document.getElementById('receiptPrintArea').style.display = 'none';
+  document.getElementById('receiptPrintBtnRow').style.display = 'none';
+  document.getElementById('receiptHint').style.display = 'none';
 }
 
 function renderReceipt(inv, payment, paidAfter, dueAfter){
@@ -950,6 +974,11 @@ function renderReceipt(inv, payment, paidAfter, dueAfter){
   const stampEl = document.getElementById('mrStamp');
   if(currentStamp){ stampEl.src = currentStamp; stampEl.style.display=''; }
   else { stampEl.style.display='none'; }
+
+  document.getElementById('receiptPlaceholder').style.display = 'none';
+  document.getElementById('receiptPrintArea').style.display = '';
+  document.getElementById('receiptPrintBtnRow').style.display = '';
+  document.getElementById('receiptHint').style.display = '';
 }
 
 async function saveInvoiceRecord(inv){
@@ -969,7 +998,7 @@ document.getElementById('payFindBtn').addEventListener('click', async ()=>{
     msg.textContent = 'No saved invoice found with that number.';
     document.getElementById('payInvoiceSummary').style.display = 'none';
     document.getElementById('payFormCard').style.display = 'none';
-    document.getElementById('payReceiptWrap').style.display = 'none';
+    document.getElementById('payLowerWrap').style.display = 'none';
     currentPaymentInvoice = null;
     return;
   }
@@ -977,8 +1006,9 @@ document.getElementById('payFindBtn').addEventListener('click', async ()=>{
   renderPayInvoiceSummary(inv);
   document.getElementById('payFormCard').style.display = '';
   resetPaymentForm();
+  document.getElementById('payLowerWrap').style.display = '';
   renderPayHistory(inv);
-  document.getElementById('payReceiptWrap').style.display = 'none';
+  resetReceiptColumn();
 });
 document.getElementById('payFindNumber').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('payFindBtn').click(); }
@@ -1012,7 +1042,6 @@ document.getElementById('payRecordBtn').addEventListener('click', async ()=>{
   renderPayInvoiceSummary(currentPaymentInvoice);
   renderPayHistory(currentPaymentInvoice);
   renderReceipt(currentPaymentInvoice, {amount, date, method}, paidAfter, dueAfter);
-  document.getElementById('payReceiptWrap').style.display = '';
   const wasEditing = editingPaymentIdx !== null;
   resetPaymentForm();
   msg.textContent = wasEditing ? 'Payment updated ✓' : 'Payment saved ✓';
