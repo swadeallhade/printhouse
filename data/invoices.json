@@ -14,12 +14,6 @@
         "date": "2026-09-17",
         "method": "Cash",
         "recordedAt": "2026-09-17T04:30:10.332Z"
-      },
-      {
-        "amount": 20,
-        "date": "2026-09-17",
-        "method": "Cash",
-        "recordedAt": "2026-09-17T04:33:21.260Z"
       }
     ],
     "bizName": "PRINT HOUSE",
