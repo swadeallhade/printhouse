@@ -75,7 +75,14 @@
   {
     "id": "inv_1788660535278",
     "savedAt": "2026-09-06T02:08:55.278Z",
-    "payments": [],
+    "payments": [
+      {
+        "amount": 884.98,
+        "date": "2026-09-17",
+        "method": "Cash",
+        "recordedAt": "2026-09-17T04:59:17.076Z"
+      }
+    ],
     "bizName": "PRINT HOUSE",
     "bizAddress": "Add: Pritinagar 4 No Road, Pritinagar, Nadia, 741247",
     "bizPhone": "7001013770",
@@ -102,7 +109,14 @@
   {
     "id": "inv_1788658291996",
     "savedAt": "2026-09-06T01:31:31.997Z",
-    "payments": [],
+    "payments": [
+      {
+        "amount": 15000,
+        "date": "2026-09-16",
+        "method": "Bank transfer",
+        "recordedAt": "2026-09-17T04:56:02.372Z"
+      }
+    ],
     "bizName": "PRINT HOUSE",
     "bizAddress": "Add: Pritinagar 4 No Road, Pritinagar, Nadia, 741247",
     "bizPhone": "7001013770",
